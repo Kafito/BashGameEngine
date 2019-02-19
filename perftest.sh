@@ -45,10 +45,10 @@ function printStringBuffer {
 }
 
 function setToString {
-  x="$1"
-  y="$2"
-  char="$3"
-  let pos="y * COLUMNS + x"
+  local x=$1
+  local y=$2
+  local char=$3
+  local pos=y*COLUMNS+x
   screen=${screen:0:$pos}"$char"${screen:$((pos+1))}
 }
 
@@ -56,21 +56,20 @@ declare -a scr
 
 function setTo {
 # theStr="${theStr:0:4}A${theStr:5}"
-    tput cup $2 $1
-    printf $3
-    return
-    x="$1"
-    y="$2"
-    char="$3"
-    let pos="y * COLUMNS + x"
+    #tput cup $2 $1
+    #printf $3
+    #return
+    local x=$1
+    local y=$2
+    local char=$3
+    local pos=y*COLUMNS+x
     scr[$pos]=$char
-    #scr[$((y * COLUMNS + x))]=$char
 }
 
 function printBuffer {
   tput cup $frameLines 0
   local -n buffer=$1
-  printf %s "${buffer[@]}"
+  printf "%s" "${buffer[@]}"
 }
 allindices=$(seq 0 $((BUFFERLINES*COLUMNS-1)))
 function clearBuffer {
@@ -91,39 +90,35 @@ function clearBuffer {
 }
 
 function drawRect {
-  x_1=$1
-  y_1=$2
-  x_2=$3
-  y_2=$4
-  char=$5
-  horizontalSeq=$(seq $x_1 $x_2)
-  for c in $horizontalSeq; do
-    let pos="y_1 * COLUMNS + c"
+  local x_1=$1
+  local y_1=$2
+  local x_2=$3
+  local y_2=$4
+  local char=$5
+  for (( c = x_1; c < x_2; ++c)); do
+    local pos=y_1*COLUMNS+c
     scr[$pos]=$char
-    let pos="y_2 * COLUMNS + c"
+    local pos=y_2*COLUMNS+c
     scr[$pos]=$char
   done
-  verticalSeq=$(seq $y_1 $y_2)
 
-  for r in $verticalSeq; do
-    let pos="r * COLUMNS + $x_1"
+  for (( r = y_1; r < y_2; ++r )); do
+    local pos=r*COLUMNS+x_1
     scr[$pos]=$char
-    let pos="r * COLUMNS + $x_2"
+    local pos=r*COLUMNS+x_2
     scr[$pos]=$char
   done
 }
 
 function fillRect {
-  x_1=$1
-  y_1=$2
-  x_2=$3
-  y_2=$4
-  char=$5
-  horizontalSeq=$(seq $x_1 $x_2)
-  verticalSeq=$(seq $y_1 $y_2)
-  for c in $horizontalSeq; do
-    for l in $verticalSeq; do
-      let pos="l * COLUMNS + c"
+  local x_1=$1
+  local y_1=$2
+  local x_2=$3
+  local y_2=$4
+  local char=$5
+  for (( l = y_1; l < y_2; ++l )); do
+    for (( c= x_1; c < x_2; ++c )); do
+      local pos=l*COLUMNS+c
       scr[$pos]=$char
     done
   done
@@ -141,20 +136,16 @@ function drawLine { # x1 y1 x2 y2 char
   local char=$5
 
   if (( y_2 >= y_1 )); then
-    let local ydist="y_2 - y_1 + 1"
-    let local xdist="x_2 - x_1 + 1"
+    local ydist=y_2-y_1+1
+    local xdist=x_2-x_1+1
 
     if ((ydist > xdist)); then
-      local line=$y_1
-      local col=$x_1
-
       local curInc=$((xdist / 2))
       local ind=0
 
-      while [ $line -le $y_2 ]; do
-        let local pos="line * COLUMNS + col"
+      for (( line=y_1, col=x_1; line <= y_2; ++line)); do
+        local pos=line*COLUMNS+col
         scr[$pos]="$ind"
-        ((line++))
         ((ind = (++ind)%10)) # debug
         ((curInc += xdist))
         if ((curInc / ydist > 0)); then
@@ -163,16 +154,12 @@ function drawLine { # x1 y1 x2 y2 char
         fi
       done
     else
-      local line=$y_1
-      local col=$x_1
-
       local curInc=$((ydist / 2))
       local ind=0
 
-      while [ $col -le $x_2 ]; do
-        let local pos="line * COLUMNS + col"
+      for (( col=x_1, line=y_1; col <= x_2; ++col)); do
+        local pos=line*COLUMNS+col
         scr[$pos]=" " #"$ind"
-        ((col++))
         ((ind = (++ind)%10)) # debug
         ((curInc += ydist))
         if ((curInc / xdist > 0)); then
@@ -222,6 +209,74 @@ function drawLine { # x1 y1 x2 y2 char
   fi
 
 }
+
+function drawCircle { # cX cY rad char
+  local cX=$1
+  local cY=$2
+  local rad=$3
+  local char=$4
+
+# Idea:
+# x^2 + y^2 = M
+# check right, down, right-down.
+# goto and set field with value closest to M
+
+  xRad=0
+  yRad=$rad
+
+   local y=$((cY - yRad))
+   local x=$((cX + xRad))
+   local pos=$((y*COLUMNS + x))
+   scr[$pos]="$char"
+   local y=$((cY + yRad))
+   local x=$((cX + xRad))
+   local pos=$((y*COLUMNS + x))
+   scr[$pos]="$char"
+   local y=$((cY - yRad))
+   local x=$((cX - xRad))
+   local pos=$((y*COLUMNS + x))
+   scr[$pos]="$char"
+   local y=$((cY + yRad))
+   local x=$((cX - xRad))
+   local pos=$((y*COLUMNS + x))
+   scr[$pos]="$char"
+
+  while (( $xRad < $rad || $yRad != 0 )) ; do
+    right=$(( (xRad+1)**2 + (yRad)**2)) 
+    down=$(( (xRad)**2 + (yRad-1)**2)) 
+    rightdown=$(( (xRad+1)**2 + (yRad-1)**2)) 
+
+    ((right = (right - rad**2)**2 ))
+    ((down = (down - rad**2)**2 ))
+    ((rightdown = (rightdown - rad**2)**2 ))
+
+    if (( right <= down && right <= rightdown )); then
+      (( xRad++ ))
+    elif (( down <= right && down <= rightdown )); then
+      (( yRad-- ))
+    else
+      (( xRad++ ))
+      (( yRad-- ))
+    fi
+    local y=$((cY - yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY - yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+  done
+}
+
 
 echo "$COLUMNS cols, $LINES lines"
 
@@ -301,6 +356,14 @@ for (( ;; )); do
   drawLine 75 45 79  5 " "
   drawLine 85 45 80  5 " "
   drawLine 90  5 86 45 " "
+
+  for i in {1..6}; do
+    drawCircle 25 25 $(( 20 - 3*i)) "$i"
+  done
+  drawCircle 40 40 5 'y'
+  drawCircle 60 40 4 'k'
+  drawCircle 60 20 2 'm'
+  drawCircle 60 10 3 'o'
 
   #printf "$screenBuffer"
   bashtime=$(time ( printBuffer scr ) 2>&1 1>&4)
