@@ -279,6 +279,78 @@ while (( $xRad < $rad || $yRad != 0 )) ; do
 done
 }
 
+function drawCircleR { # cX cY rad xR yR char
+  local cX=$1
+  local cY=$2
+  local rad=$3
+  local xR=$4
+  local yR=$5
+  local char=$6
+
+# Idea:
+# x^2 + y^2 = M
+# check right, down, right-down.
+# goto and set field with value closest to M
+
+xRad=0
+yRad=$rad
+
+local y=$((cY - yRad))
+local x=$((cX + xRad))
+local pos=$((y*COLUMNS + x))
+scr[$pos]="$char"
+local y=$((cY + yRad))
+local x=$((cX + xRad))
+local pos=$((y*COLUMNS + x))
+scr[$pos]="$char"
+local y=$((cY - yRad))
+local x=$((cX - xRad))
+local pos=$((y*COLUMNS + x))
+scr[$pos]="$char"
+local y=$((cY + yRad))
+local x=$((cX - xRad))
+local pos=$((y*COLUMNS + x))
+scr[$pos]="$char"
+
+while (( $yRad != 0 )) ; do
+  right=$(( ((xRad+1)*xR)**2 + (yRad*yR)**2)) 
+  down=$(( (xRad*xR)**2 + ((yRad-1)*yR)**2)) 
+  rightdown=$(( ((xRad+1)*xR)**2 + ((yRad-1)*yR)**2)) 
+
+  # TODO: cRef isn't correct yet.
+  local cRef=$(( (xR*rad)**2+(yR*rad)**2 ))
+
+  ((right = (right - cRef)**2 ))
+  ((down = (down - cRef)**2 ))
+  ((rightdown = (rightdown - cRef)**2 ))
+
+  if (( right <= down && right <= rightdown )); then
+    (( xRad++ ))
+  elif (( down <= right && down <= rightdown )); then
+    (( yRad-- ))
+  else
+    (( xRad++ ))
+    (( yRad-- ))
+  fi
+  local y=$((cY - yRad))
+  local x=$((cX + xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY + yRad))
+  local x=$((cX + xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY - yRad))
+  local x=$((cX - xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY + yRad))
+  local x=$((cX - xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+done
+}
+
 
 echo "$COLUMNS cols, $LINES lines"
 
@@ -560,6 +632,8 @@ while [ 1 ]; do
   playerViewX=$((playerPosX * scX / 100 - mapViewX * scX))
   playerViewY=$((playerPosY * scY / 100 - mapViewY * scY))
   if ((playerViewX >= 0 && playerViewX <= visibleTilesX*scX && playerViewY >= 0 && playerViewY <= visibleTilesY*scY)); then
+    drawCircleR playerViewX playerViewY 10 1 1 "M"
+    #drawCircle playerViewX playerViewY 10 "N"
     setTo playerViewX playerViewY "P"
   fi
   setTo $((camPosX * scX / 100 - mapViewX * scX )) $((camPosY * scY / 100 - mapViewY * scY)) "C"
