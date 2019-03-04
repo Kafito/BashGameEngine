@@ -313,12 +313,17 @@ local pos=$((y*COLUMNS + x))
 scr[$pos]="$char"
 
 while (( $yRad != 0 )) ; do
-  right=$(( ((xRad+1)*xR)**2 + (yRad*yR)**2)) 
-  down=$(( (xRad*xR)**2 + ((yRad-1)*yR)**2)) 
-  rightdown=$(( ((xRad+1)*xR)**2 + ((yRad-1)*yR)**2)) 
+  # TODO: cRef isn't correct yet
+  local cRef=$(( (xR*rad)**2 ))
 
-  # TODO: cRef isn't correct yet.
-  local cRef=$(( (xR*rad)**2+(yR*rad)**2 ))
+  right=$(( (xRad*yR+yR)**2 + (yRad*xR)**2 )) 
+  down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
+  rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
+
+  tput cup 1 0
+  echo -n "xR $xR yR $yR | xRad $xRad | yRad $yRad | r $right d $down rd $rightdown | ref $cRef             "
+  #read
+
 
   ((right = (right - cRef)**2 ))
   ((down = (down - cRef)**2 ))
