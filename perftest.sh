@@ -320,7 +320,7 @@ while (( $yRad != 0 )) ; do
   down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
   rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
 
-  tput cup 1 0
+  tput cup 2 0
   echo -n "xR $xR yR $yR | xRad $xRad | yRad $yRad | r $right d $down rd $rightdown | ref $cRef             "
   #read
 
@@ -547,6 +547,7 @@ IFS=" "; read -a mapArr <<< $(echo "$map" | sed 's/\(.\)/\1 /g'); IFS="$defaultI
 [ ${#map} != $((mapWidth * mapHeight)) ] && echo "MapSizeMismatch" 
 
 follow=$((0))
+snapToGrid=$((0))
 scX=$((origScaleX))
 scY=$((origScaleY))
 
@@ -615,10 +616,18 @@ while [ 1 ]; do
   camWorldX=$((camPosX / 100))
   camWorldY=$((camPosY / 100))
 
-  (( camWorldX >= visibleTilesX / 2  )) || camWorldX=$((visibleTilesX / 2))
-  (( camWorldY >= visibleTilesY / 2  )) || camWorldY=$((visibleTilesY / 2))
-  (( camWorldX <= (mapWidth - visibleTilesX / 2)  )) || camWorldX=$((mapWidth - visibleTilesX / 2))
-  (( camWorldY <= (mapHeight - visibleTilesY / 2)  )) || camWorldY=$((mapHeight - visibleTilesY / 2))
+  if (( snapToGrid == 1)); then
+    camSubTilePosX=$(( (camPosX % 100)*scX/100 ))
+    camSubTilePosY=$(( (camPosY % 100)*scY/100 ))
+  fi
+
+  (( camWorldX >= visibleTilesX / 2  )) ||  { camWorldX=$((visibleTilesX / 2)) ; camSubTilePosX=$((0)) ; }
+  (( camWorldY >= visibleTilesY / 2  )) ||  { camWorldY=$((visibleTilesY / 2)) ; camSubTilePosY=$((0)) ; }
+  (( camWorldX < (mapWidth - visibleTilesX / 2)  )) ||  { camWorldX=$((mapWidth - visibleTilesX / 2)) ; camSubTilePosX=$((0)) ; }
+  (( camWorldY < (mapHeight - visibleTilesY / 2)  )) ||  { camWorldY=$((mapHeight - visibleTilesY / 2)) ;  camSubTilePosY=$((0)) ; }
+
+  tput cup 2 0
+  echo -n "subX = $camSubTilePosX | subY = $camSubTilePosY"
 
   mapViewX=$((camWorldX - visibleTilesX / 2));
   mapViewY=$((camWorldY - visibleTilesY / 2));
@@ -629,19 +638,19 @@ while [ 1 ]; do
       yInd=$((y+mapViewY))
       mapChar="${mapArr[$((yInd*mapWidth + xInd))]}" 
       if [ "$mapChar" != "." ]; then
-        fillRect $((x*scX)) $((y*scY)) $(( (x+1)*scX )) $(( (y+1)*scY )) "$mapChar"
+        fillRect $((x*scX-camSubTilePosX)) $((y*scY-camSubTilePosY)) $(( (x+1)*scX-camSubTilePosX )) $(( (y+1)*scY-camSubTilePosY )) "$mapChar"
       fi
     done
   done
 
-  playerViewX=$((playerPosX * scX / 100 - mapViewX * scX))
-  playerViewY=$((playerPosY * scY / 100 - mapViewY * scY))
+  playerViewX=$((playerPosX * scX / 100 - mapViewX * scX-camSubTilePosX))
+  playerViewY=$((playerPosY * scY / 100 - mapViewY * scY-camSubTilePosY))
   if ((playerViewX >= 0 && playerViewX <= visibleTilesX*scX && playerViewY >= 0 && playerViewY <= visibleTilesY*scY)); then
     drawCircleR playerViewX playerViewY 10 1 1 "M"
     #drawCircle playerViewX playerViewY 10 "N"
     setTo playerViewX playerViewY "P"
   fi
-  setTo $((camPosX * scX / 100 - mapViewX * scX )) $((camPosY * scY / 100 - mapViewY * scY)) "C"
+  setTo $((camPosX * scX / 100 - mapViewX * scX-camSubTilePosX )) $((camPosY * scY / 100 - mapViewY * scY -camSubTilePosY)) "C"
 
   printBuffer scr
 
@@ -653,9 +662,11 @@ while [ 1 ]; do
       w) kw=500 ;;
       s) ks=500 ;;
       f) ((follow^=1)) ;;
+      g) ((snapToGrid^=1)) ;;
       +) incScale ;;
       -) decScale ;;
       r) resetScale ;;
+      p) read
     esac
   done
 
@@ -674,10 +685,10 @@ while [ 1 ]; do
   if [ "$pMapCharX" != "." ]; then playerPosX=$oldX; ((playerVX*=-1)); fi
   if [ "$pMapCharY" != "." ]; then playerPosY=$oldY; ((playerVY*=-1)); fi
 
-  ((kd-=elapsedTime)); if ((kd > 0)); then ((camPosX+=1*elapsedTime)); fi
-  ((ka-=elapsedTime)); if ((ka > 0)); then ((camPosX-=1*elapsedTime)); fi
-  ((kw-=elapsedTime)); if ((kw > 0)); then ((camPosY-=1*elapsedTime)); fi
-  ((ks-=elapsedTime)); if ((ks > 0)); then ((camPosY+=1*elapsedTime)); fi
+  ((kd-=elapsedTime)); if ((kd > 0)); then ((camPosX+=1*elapsedTime/3)); fi
+  ((ka-=elapsedTime)); if ((ka > 0)); then ((camPosX-=1*elapsedTime/3)); fi
+  ((kw-=elapsedTime)); if ((kw > 0)); then ((camPosY-=1*elapsedTime/3)); fi
+  ((ks-=elapsedTime)); if ((ks > 0)); then ((camPosY+=1*elapsedTime/3)); fi
 
   ((camPosX <= 0)) && camPosX=$((0))
   ((camPosX > mapWidth * 100-1)) && camPosX=$((mapWidth*100-1))
