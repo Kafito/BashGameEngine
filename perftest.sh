@@ -513,32 +513,32 @@ mapWidth=$((32))
 mapHeight=$((22))
 playerPosX=$((8*100+50))
 playerPosY=$((4*100+50))
-playerVX=$((40))
-playerVY=$((30))
-camPosX=$((900))
-camPosy=$((1600))
+playerVX=$((10))
+playerVY=$((7))
+camPosX=$((1600))
+camPosY=$((1600))
 
  map="1#2#3#4#6#7#8#9#a#b#c#d#e#f#g#h#" # 1
-map+="o..#.......#...................#" # 2
-map+="o..#.......#...................#" # 3
-map+="o..#.###...#...................#" # 4
-map+="o......#...#...................#" # 5
-map+="o......##.##...................#" # 6
-map+="o..#...........................#" # 7
-map+="o..............................#" # 8
-map+="o.##.....####..................#" # 9
-map+="#..............................#" # 10
-map+="#..............................#" # 11
-map+="#..............................#" # 12
-map+="#..............................#" # 13
-map+="#..............................#" # 14
-map+="#..............................#" # 15
-map+="#..............................#" # 16
-map+="#..............................#" # 17
-map+="#..............................#" # 18
-map+="#..............................#" # 19
-map+="#..............................#" # 20
-map+="#..............................#" # 21
+map+="l..#.......#...................r" # 2
+map+="l..#.......#...................r" # 3
+map+="l..#########...................r" # 4
+map+="l5.....#.#.#...................r" # 5
+map+="l......#####...................r" # 6
+map+="l..#...........................r" # 7
+map+="l..............................r" # 8
+map+="l.##.....####..................r" # 9
+map+="l10............................r" # 10
+map+="l..............................r" # 11
+map+="l..............................r" # 12
+map+="l..............................r" # 13
+map+="l..............................r" # 14
+map+="l15............................r" # 15
+map+="l..............................r" # 16
+map+="l..............................r" # 17
+map+="l..............................r" # 18
+map+="l..............................r" # 19
+map+="l20............................r" # 20
+map+="l..............................r" # 21
 map+="################################" # 22
 
 # create array from string map
@@ -547,7 +547,8 @@ IFS=" "; read -a mapArr <<< $(echo "$map" | sed 's/\(.\)/\1 /g'); IFS="$defaultI
 [ ${#map} != $((mapWidth * mapHeight)) ] && echo "MapSizeMismatch" 
 
 follow=$((0))
-snapToGrid=$((0))
+snapToGrid=$((1))
+debug=$((0))
 scX=$((origScaleX))
 scY=$((origScaleY))
 
@@ -556,6 +557,9 @@ function recalcSettings {
   visibleTilesX=$((visibleTilesX >= mapWidth ? mapWidth : visibleTilesX)) # clamp
   visibleTilesY=$((BUFFERLINES / scY))
   visibleTilesY=$((visibleTilesY >= mapHeight ? mapHeight : visibleTilesY)) #clamp
+
+  visibleSubTilesX=$((COLUMNS % scX))
+  visibleSubTilesX=$((visibleTilesX >= mapWidth ? 0 : visibleSubTilesX)) # clamp
 }
 
 function resetScale {
@@ -595,13 +599,22 @@ function decScale {
 
 recalcSettings
 
-camPosX=$((visibleTilesX/2*100))
-camPosY=$((visibleTilesY/2*100))
+camPosX=$((visibleTilesX/2*100+1))
+camPosY=$((visibleTilesY/2*100+1))
+
 stty -echo
 lastTime=$(date +"%-s%N")
 setpos0=$(tput cup 0 0)
+
+
 while [ 1 ]; do
   clearBuffer
+
+  mapSizePxWidth=$((mapWidth*scX))
+  mapSizePxHeight=$((mapHeight*scY))
+
+  w2camX=$((camPosX-(COLUMNS)*100/scX/2))
+  w2camY=$((camPosY-(BUFFERLINES)*100/scY/2))
 
   curTime=$(date +"%-s%N")
   elapsedTime=$(( (curTime - lastTime) / 1000000))
@@ -621,36 +634,70 @@ while [ 1 ]; do
     camSubTilePosY=$(( (camPosY % 100)*scY/100 ))
   fi
 
-  (( camWorldX >= visibleTilesX / 2  )) ||  { camWorldX=$((visibleTilesX / 2)) ; camSubTilePosX=$((0)) ; }
-  (( camWorldY >= visibleTilesY / 2  )) ||  { camWorldY=$((visibleTilesY / 2)) ; camSubTilePosY=$((0)) ; }
-  (( camWorldX < (mapWidth - visibleTilesX / 2)  )) ||  { camWorldX=$((mapWidth - visibleTilesX / 2)) ; camSubTilePosX=$((0)) ; }
-  (( camWorldY < (mapHeight - visibleTilesY / 2)  )) ||  { camWorldY=$((mapHeight - visibleTilesY / 2)) ;  camSubTilePosY=$((0)) ; }
-
-  tput cup 2 0
+  tput cup 1 $((COLUMNS/2)) 
   echo -n "subX = $camSubTilePosX | subY = $camSubTilePosY"
 
-  mapViewX=$((camWorldX - visibleTilesX / 2));
-  mapViewY=$((camWorldY - visibleTilesY / 2));
+  camPxX=$((camPosX*scX/100))
+  camPxY=$((camPosY*scY/100))
 
-  for ((y = 0; y < visibleTilesY; ++y)); do
-    for ((x = 0; x < visibleTilesX ; ++x)); do
-      xInd=$((x+mapViewX))
-      yInd=$((y+mapViewY))
-      mapChar="${mapArr[$((yInd*mapWidth + xInd))]}" 
+
+  startX=$((0-camPxX+COLUMNS/2))
+  startY=$((0-camPxY+BUFFERLINES/2))
+  endX=$((0+mapSizePxWidth-camPxX+COLUMNS/2))
+  endY=$((0+mapSizePxHeight-camPxY+BUFFERLINES/2))
+  ((startX < 0)) && startX=$((0)); (( endX > COLUMNS )) && endX=$((COLUMNS))
+  ((startY < 0)) && startY=$((0)); (( endY > BUFFERLINES )) && endY=$((BUFFERLINES))
+
+  tput cup 0 $((COLUMNS/2))
+  echo -n "screensize $COLUMNS x $BUFFERLINES | cam $camPxX $camPxY | sX $startX sY $startY endX $endX endY $endY"
+
+  for ((y = startY; y < endY; )); do
+    tilePxY=$((camPxY-(BUFFERLINES-1)/2+y))
+    #tilePxY=$((camPxY-(BUFFERLINES-1)/2+y))
+    tileWY=$((tilePxY/scY))
+    rectHeight=$((y==0 ? scY-camSubTilePosY : scY))
+    rectHeight=$((y+rectHeight > BUFFERLINES ? BUFFERLINES-y : rectHeight ))
+    for ((x = startX; x < endX ; )); do
+      #tilePxX=$((camPxX-COLUMNS/2+x))
+      tilePxX=$((camPxX-(COLUMNS-1)/2+x))
+      tileWX=$((tilePxX/scX))
+      mapChar="${mapArr[$((tileWY*mapWidth + tileWX))]}" 
+      #tput cup 1 0; echo -n "'$mapChar' "
+      rectWidth=$((x==0 ? scX-camSubTilePosX : scX))
+      rectWidth=$((x+rectWidth > COLUMNS ? COLUMNS-x : rectWidth))
       if [ "$mapChar" != "." ]; then
-        fillRect $((x*scX-camSubTilePosX)) $((y*scY-camSubTilePosY)) $(( (x+1)*scX-camSubTilePosX )) $(( (y+1)*scY-camSubTilePosY )) "$mapChar"
+        #fillRect $((x-camSubTilePosX)) $((y-camSubTilePosY)) $(( x+scX-camSubTilePosX )) $(( y+scY-camSubTilePosY )) "$mapChar"x
+        fillRect $((x)) $((y)) $((x+rectWidth)) $((y+rectHeight)) "$mapChar"
       fi
+      if ((debug == 1)); then
+        printBuffer scr
+        tput cup 2 0; echo -n "$x $y | campos x $camPosX y $camPosY | tilePxX $tilePxX tilePxY $tilePxY camPxX $camPxX camPxY $camPxY tileWX $tileWX tileWY $tileWY    "
+        tput cup 1 0; echo -n "starX=$startX startY=$startY endX=$endX endY=$endY          "
+        read
+      fi
+      ((x+=rectWidth))
     done
+    ((y+=rectHeight))
   done
 
-  playerViewX=$((playerPosX * scX / 100 - mapViewX * scX-camSubTilePosX))
-  playerViewY=$((playerPosY * scY / 100 - mapViewY * scY-camSubTilePosY))
-  if ((playerViewX >= 0 && playerViewX <= visibleTilesX*scX && playerViewY >= 0 && playerViewY <= visibleTilesY*scY)); then
-    drawCircleR playerViewX playerViewY 10 1 1 "M"
-    #drawCircle playerViewX playerViewY 10 "N"
+  #playerViewX=$((playerPosX * scX / 100 - camPxX+COLUMNS/2))
+  #playerViewY=$((playerPosY * scY / 100 - camPxY+BUFFERLINES/2))
+  #if ((playerViewX >= 0 && playerViewX <= visibleTilesX*scX && playerViewY >= 0 && playerViewY <= visibleTilesY*scY)); then
+  #  drawCircleR playerViewX playerViewY 3 9 4 "P"
+  #  setTo playerViewX playerViewY "P"
+  #fi
+  #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
+  playerViewX=$(( (playerPosX-w2camX)*scX/100 ))
+  playerViewY=$(( (playerPosY-w2camY)*scY/100 ))
+  
+  if ((playerViewX >= 0 && playerViewX <= COLUMNS && playerViewY >= 0 && playerViewY <= BUFFERLINES)); then
     setTo playerViewX playerViewY "P"
+    radius=4
+    if ((playerViewX >= radius && playerViewX <= (COLUMNS-radius) && playerViewY >= radius && playerViewY <= (BUFFERLINES-radius) )); then
+      drawCircleR playerViewX playerViewY 3 9 4 "P"
+    fi
   fi
-  setTo $((camPosX * scX / 100 - mapViewX * scX-camSubTilePosX )) $((camPosY * scY / 100 - mapViewY * scY -camSubTilePosY)) "C"
+  setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
 
   printBuffer scr
 
@@ -666,34 +713,40 @@ while [ 1 ]; do
       +) incScale ;;
       -) decScale ;;
       r) resetScale ;;
-      p) read
+      p) read ;;
+      b) ((debug^=1)) ;;
     esac
   done
 
-  tput cup 1 0
+  tput cup 2 $((COLUMNS / 2))
   echo -n "scX = $scX / scY = $scY             "
 
+  # Player Movement Code
   oldX=$((playerPosX))
   oldY=$((playerPosY))
 
   ((playerPosX+=elapsedTime * playerVX / 200))
   ((playerPosY+=elapsedTime * playerVY / 200))
 
-  pMapCharX=${mapArr[$((oldY / 100 * mapWidth + playerPosX / 100))]}
-  pMapCharY=${mapArr[$((playerPosY / 100 * mapWidth + oldX / 100))]}
+  pMapCharX=${mapArr[$(( oldY / 100 * mapWidth + playerPosX/100 ))]}
+  pMapCharY=${mapArr[$(( playerPosY / 100 * mapWidth + oldX/100 ))]}
+  #pMapCharX=${mapArr[$(( oldY/100 * mapWidth + playerPosX/100 ))]}
+  #pMapCharY=${mapArr[$(( playerPosY/100 * mapWidth + oldX/100 ))]}
 
   if [ "$pMapCharX" != "." ]; then playerPosX=$oldX; ((playerVX*=-1)); fi
   if [ "$pMapCharY" != "." ]; then playerPosY=$oldY; ((playerVY*=-1)); fi
 
+  # Keyboard Handling Code
   ((kd-=elapsedTime)); if ((kd > 0)); then ((camPosX+=1*elapsedTime/3)); fi
   ((ka-=elapsedTime)); if ((ka > 0)); then ((camPosX-=1*elapsedTime/3)); fi
   ((kw-=elapsedTime)); if ((kw > 0)); then ((camPosY-=1*elapsedTime/3)); fi
   ((ks-=elapsedTime)); if ((ks > 0)); then ((camPosY+=1*elapsedTime/3)); fi
 
-  ((camPosX <= 0)) && camPosX=$((0))
-  ((camPosX > mapWidth * 100-1)) && camPosX=$((mapWidth*100-1))
-  ((camPosY <= 0)) && camPosY=$((0))
-  ((camPosY > mapHeight * 100-1)) && camPosY=$((mapHeight*100-1))
+  # Camera Position Code
+#  ((camPosX <= 0)) && camPosX=$((0))
+#  ((camPosX > mapWidth * 100-1)) && camPosX=$((mapWidth*100-1))
+#  ((camPosY <= 0)) && camPosY=$((0))
+#  ((camPosY > mapHeight * 100-1)) && camPosY=$((mapHeight*100-1))
 
 done
 
