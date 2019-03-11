@@ -652,23 +652,48 @@ while [ 1 ]; do
   echo -n "screensize $COLUMNS x $BUFFERLINES | cam $camPxX $camPxY | sX $startX sY $startY endX $endX endY $endY"
 
   for ((y = startY; y < endY; )); do
-    tilePxY=$((camPxY-(BUFFERLINES-1)/2+y))
-    #tilePxY=$((camPxY-(BUFFERLINES-1)/2+y))
+
+    tilePxY=$((camPxY-(BUFFERLINES)/2+y))
     tileWY=$((tilePxY/scY))
-    rectHeight=$((y==0 ? scY-camSubTilePosY : scY))
-    rectHeight=$((y+rectHeight > BUFFERLINES ? BUFFERLINES-y : rectHeight ))
+    rectHeight=$((y==0 ? scY-(tilePxY % scY) : scY))
+    rectHeight=$((y+rectHeight >= BUFFERLINES ? BUFFERLINES-y : rectHeight ))
+
     for ((x = startX; x < endX ; )); do
-      #tilePxX=$((camPxX-COLUMNS/2+x))
-      tilePxX=$((camPxX-(COLUMNS-1)/2+x))
+
+      tilePxX=$((camPxX-COLUMNS/2+x))
       tileWX=$((tilePxX/scX))
+      rectWidth=$((x==0 ? scX-(tilePxX % scX) : scX))
+      rectWidth=$((x+rectWidth >= COLUMNS ? COLUMNS-x-0 : rectWidth))
+
       mapChar="${mapArr[$((tileWY*mapWidth + tileWX))]}" 
-      #tput cup 1 0; echo -n "'$mapChar' "
-      rectWidth=$((x==0 ? scX-camSubTilePosX : scX))
-      rectWidth=$((x+rectWidth > COLUMNS ? COLUMNS-x : rectWidth))
+
       if [ "$mapChar" != "." ]; then
-        #fillRect $((x-camSubTilePosX)) $((y-camSubTilePosY)) $(( x+scX-camSubTilePosX )) $(( y+scY-camSubTilePosY )) "$mapChar"x
         fillRect $((x)) $((y)) $((x+rectWidth)) $((y+rectHeight)) "$mapChar"
       fi
+
+      #if (( x != 0 && y!=0 )); then
+      #  cX=$((tilePxX - (camPxX-COLUMNS/2) ))
+      #  cY=$((tilePxY - (camPxY-BUFFERLINES/2) ))
+      #  #setTo $cX $cY "S"
+      #  cX=$((tilePxX+scX/2 - (camPxX-COLUMNS/2) ))
+      #  cY=$((tilePxY+scY/2 - (camPxY-BUFFERLINES/2) ))
+      #  #setTo $cX $cY "C"
+
+      #  tileWorldX=tileWX*100
+      #  tileWorldY=tileWY*100
+      #  tileWX_pxX=tileWorldX*scX/100
+      #  tileWY_pxY=tileWorldY*scY/100
+
+      #  cX=$((tileWX_pxX - (camPxX-COLUMNS/2) ))
+      #  cY=$((tileWY_pxY - (camPxY-BUFFERLINES/2) ))
+      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "W"
+
+      #  cX=$((tileWX_pxX + scX/2 - (camPxX-COLUMNS/2) ))
+      #  cY=$((tileWY_pxY + scY/2 - (camPxY-BUFFERLINES/2) ))
+      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "C"
+      #fi
+      #setTo $x $y "O"
+
       if ((debug == 1)); then
         printBuffer scr
         tput cup 2 0; echo -n "$x $y | campos x $camPosX y $camPosY | tilePxX $tilePxX tilePxY $tilePxY camPxX $camPxX camPxY $camPxY tileWX $tileWX tileWY $tileWY    "
@@ -697,7 +722,7 @@ while [ 1 ]; do
       drawCircleR playerViewX playerViewY 3 9 4 "P"
     fi
   fi
-  setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
+  #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
 
   printBuffer scr
 
