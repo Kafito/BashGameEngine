@@ -227,65 +227,163 @@ function drawCircle { # cX cY rad char
   local rad=$3
   local char=$4
 
-# Idea:
-# x^2 + y^2 = M
-# check right, down, right-down.
-# goto and set field with value closest to M
+  # Idea:
+  # x^2 + y^2 = M
+  # check right, down, right-down.
+  # goto and set field with value closest to M
 
-xRad=0
-yRad=$rad
+  xRad=0
+  yRad=$rad
 
-local y=$((cY - yRad))
-local x=$((cX + xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY + yRad))
-local x=$((cX + xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY - yRad))
-local x=$((cX - xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY + yRad))
-local x=$((cX - xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
+  local y=$((cY - yRad))
+  local x=$((cX + xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY + yRad))
+  local x=$((cX + xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY - yRad))
+  local x=$((cX - xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
+  local y=$((cY + yRad))
+  local x=$((cX - xRad))
+  local pos=$((y*COLUMNS + x))
+  scr[$pos]="$char"
 
-while (( $xRad < $rad || $yRad != 0 )) ; do
-  right=$(( (xRad+1)**2 + (yRad)**2)) 
-  down=$(( (xRad)**2 + (yRad-1)**2)) 
-  rightdown=$(( (xRad+1)**2 + (yRad-1)**2)) 
+  while (( $xRad < $rad || $yRad != 0 )) ; do
+    right=$(( (xRad+1)**2 + (yRad)**2)) 
+    down=$(( (xRad)**2 + (yRad-1)**2)) 
+    rightdown=$(( (xRad+1)**2 + (yRad-1)**2)) 
 
-  ((right = (right - rad**2)**2 ))
-  ((down = (down - rad**2)**2 ))
-  ((rightdown = (rightdown - rad**2)**2 ))
+    ((right = (right - rad**2)**2 ))
+    ((down = (down - rad**2)**2 ))
+    ((rightdown = (rightdown - rad**2)**2 ))
 
-  if (( right <= down && right <= rightdown )); then
-    (( xRad++ ))
-  elif (( down <= right && down <= rightdown )); then
-    (( yRad-- ))
+    if (( right <= down && right <= rightdown )); then
+      (( xRad++ ))
+    elif (( down <= right && down <= rightdown )); then
+      (( yRad-- ))
+    else
+      (( xRad++ ))
+      (( yRad-- ))
+    fi
+    local y=$((cY - yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY - yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+  done
+}
+
+
+function setUpRot {
+  local cX=0
+  local cY=0
+  local rad=100
+  local xR=1
+  local yR=1
+
+  local xRad=0
+  local yRad=$rad
+  maxRotDistance=0
+
+  while (( $yRad != 0 )) ; do
+    local cRef=$(( (xR*rad)**2 ))
+
+    right=$(( (xRad*yR+yR)**2 + (yRad*xR)**2 )) 
+    down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
+    rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
+
+    ((right = (right - cRef)**2 ))
+    ((down = (down - cRef)**2 ))
+    ((rightdown = (rightdown - cRef)**2 ))
+
+    if (( right <= down && right <= rightdown )); then
+      (( maxRotDistance+=100 ))
+      (( xRad++ ))
+    elif (( down <= right && down <= rightdown )); then
+      (( maxRotDistance+=100 ))
+      (( yRad-- ))
+    else
+      (( maxRotDistance+=141 ))
+      (( xRad++ ))
+      (( yRad-- ))
+    fi
+  done
+}
+
+function getVecForRot { #  deg
+  local cX=0
+  local cY=0
+  local rad=100
+  local xR=1
+  local yR=1
+  local degrees=$1
+  (( degrees = (degrees + 360) % 360 ))
+
+  # Idea:
+  # x^2 + y^2 = M
+  # check right, down, right-down.
+  # goto and set field with value closest to M
+
+  xRad=0
+  yRad=$rad
+
+  # distance / 90 grad    ->  distance / 90 / 45 --> distance * r / 90 
+
+  distanceToTravel=$((maxRotDistance * (degrees % 90) / 90 ))
+  distance=0
+
+  while (( distance < distanceToTravel && yRad != 0 )) ; do
+    local cRef=$(( (xR*rad)**2 ))
+
+    right=$(( (xRad*yR+yR)**2 + (yRad*xR)**2 )) 
+    down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
+    rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
+
+    ((right = (right - cRef)**2 ))
+    ((down = (down - cRef)**2 ))
+    ((rightdown = (rightdown - cRef)**2 ))
+
+    if (( right <= down && right <= rightdown )); then
+      (( distance+=100 ))
+      (( xRad++ ))
+    elif (( down <= right && down <= rightdown )); then
+      (( distance+=100 ))
+      (( yRad-- ))
+    else
+      (( distance+=141 ))
+      (( xRad++ ))
+      (( yRad-- ))
+    fi
+  done
+
+  if (( degrees < 90 )); then
+    outRadX=$((-xRad))
+    outRadY=$((-yRad))
+  elif (( degrees < 180 )); then
+    outRadX=$((-yRad))
+    outRadY=$((xRad))
+  elif (( degrees < 270 )); then
+    outRadX=$((xRad))
+    outRadY=$((yRad))
   else
-    (( xRad++ ))
-    (( yRad-- ))
+    outRadX=$((yRad))
+    outRadY=$((-xRad))
   fi
-  local y=$((cY - yRad))
-  local x=$((cX + xRad))
-  local pos=$((y*COLUMNS + x))
-  scr[$pos]="$char"
-  local y=$((cY + yRad))
-  local x=$((cX + xRad))
-  local pos=$((y*COLUMNS + x))
-  scr[$pos]="$char"
-  local y=$((cY - yRad))
-  local x=$((cX - xRad))
-  local pos=$((y*COLUMNS + x))
-  scr[$pos]="$char"
-  local y=$((cY + yRad))
-  local x=$((cX - xRad))
-  local pos=$((y*COLUMNS + x))
-  scr[$pos]="$char"
-done
 }
 
 function drawCircleR { # cX cY rad xR yR char
@@ -296,56 +394,14 @@ function drawCircleR { # cX cY rad xR yR char
   local yR=$5
   local char=$6
 
-# Idea:
-# x^2 + y^2 = M
-# check right, down, right-down.
-# goto and set field with value closest to M
+  # Idea:
+  # x^2 + y^2 = M
+  # check right, down, right-down.
+  # goto and set field with value closest to M
 
-xRad=0
-yRad=$rad
+  xRad=0
+  yRad=$rad
 
-local y=$((cY - yRad))
-local x=$((cX + xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY + yRad))
-local x=$((cX + xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY - yRad))
-local x=$((cX - xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-local y=$((cY + yRad))
-local x=$((cX - xRad))
-local pos=$((y*COLUMNS + x))
-scr[$pos]="$char"
-
-while (( $yRad != 0 )) ; do
-  # TODO: cRef isn't correct yet
-  local cRef=$(( (xR*rad)**2 ))
-
-  right=$(( (xRad*yR+yR)**2 + (yRad*xR)**2 )) 
-  down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
-  rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
-
-  tput cup 2 0
-  echo -n "xR $xR yR $yR | xRad $xRad | yRad $yRad | r $right d $down rd $rightdown | ref $cRef             "
-  #read
-
-
-  ((right = (right - cRef)**2 ))
-  ((down = (down - cRef)**2 ))
-  ((rightdown = (rightdown - cRef)**2 ))
-
-  if (( right <= down && right <= rightdown )); then
-    (( xRad++ ))
-  elif (( down <= right && down <= rightdown )); then
-    (( yRad-- ))
-  else
-    (( xRad++ ))
-    (( yRad-- ))
-  fi
   local y=$((cY - yRad))
   local x=$((cX + xRad))
   local pos=$((y*COLUMNS + x))
@@ -362,7 +418,46 @@ while (( $yRad != 0 )) ; do
   local x=$((cX - xRad))
   local pos=$((y*COLUMNS + x))
   scr[$pos]="$char"
-done
+
+  while (( $yRad != 0 )) ; do
+    # TODO: cRef isn't correct yet
+    local cRef=$(( (xR*rad)**2 ))
+
+    right=$(( (xRad*yR+yR)**2 + (yRad*xR)**2 )) 
+    down=$(( (xRad*yR)**2 + (yRad*xR-xR)**2 )) 
+    rightdown=$(( (xRad*yR+yR)**2 + (yRad*xR-xR)**2 )) 
+
+    echo -n "$dbg20" "xR $xR yR $yR | xRad $xRad | yRad $yRad | r $right d $down rd $rightdown | ref $cRef             "
+
+    ((right = (right - cRef)**2 ))
+    ((down = (down - cRef)**2 ))
+    ((rightdown = (rightdown - cRef)**2 ))
+
+    if (( right <= down && right <= rightdown )); then
+      (( xRad++ ))
+    elif (( down <= right && down <= rightdown )); then
+      (( yRad-- ))
+    else
+      (( xRad++ ))
+      (( yRad-- ))
+    fi
+    local y=$((cY - yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX + xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY - yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+    local y=$((cY + yRad))
+    local x=$((cX - xRad))
+    local pos=$((y*COLUMNS + x))
+    scr[$pos]="$char"
+  done
 }
 
 
@@ -612,6 +707,9 @@ recalcSettings
 
 camPosX=$((visibleTilesX/2*100+1))
 camPosY=$((visibleTilesY/2*100+1))
+setUpRot
+
+rot=0
 
 stty -echo
 lastTime=$(date +"%-s%N")
@@ -731,6 +829,18 @@ while [ 1 ]; do
       drawCircleR playerViewX playerViewY 3 9 4 "P"
     fi
   fi
+
+
+  getVecForRot $rot
+  spx0=$(( (camPosX + 0)*scX/100 ))
+  spx1=$(( (camPosX + outRadX*3/6)*scX/100 ))
+  spy0=$(( (camPosY + 0)*scY/100 ))
+  spy1=$(( (camPosY + outRadY*3/6)*scY/100 ))
+  echo -n "$dbg10 $spx0 $spx1 $spy0 $spy1 $maxRotDistance                               "
+  (( rot+= 5 ))
+
+  drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
+
   #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
 
   printBuffer scr
