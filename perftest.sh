@@ -517,8 +517,6 @@ function playground {
 origScaleX=$((9))
 origScaleY=$((4))
 
-mapWidth=$((32))
-mapHeight=$((22))
 playerPosX=$((8*100+50))
 playerPosY=$((4*100+50))
 playerVX=$((10))
@@ -526,6 +524,8 @@ playerVY=$((7))
 camPosX=$((1600))
 camPosY=$((1600))
 
+mapWidth=$((32))
+mapHeight=$((22))
  map="1#2#3#4#6#7#8#9#a#b#c#d#e#f#g#h#" # 1
 map+="l..#.......#...................r" # 2
 map+="l..#.......#.#.#.##.#..#...#...r" # 3
@@ -548,6 +548,9 @@ map+="l..............................r" # 19
 map+="l20............................r" # 20
 map+="l..............................r" # 21
 map+="################################" # 22
+
+#source perf.map
+source simplemap.map
 
 # create array from string map
 IFS=" "; read -a mapArr <<< $(echo "$map" | sed 's/\(.\)/\1 /g'); IFS="$defaultIFS"
