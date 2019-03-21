@@ -791,11 +791,11 @@ while [ 1 ]; do
 
       #  cX=$((tileWX_pxX - (camPxX-COLUMNS/2) ))
       #  cY=$((tileWY_pxY - (camPxY-BUFFERLINES/2) ))
-      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "W"
+      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "O" # tile origin
 
       #  cX=$((tileWX_pxX + scX/2 - (camPxX-COLUMNS/2) ))
       #  cY=$((tileWY_pxY + scY/2 - (camPxY-BUFFERLINES/2) ))
-      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "C"
+      #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "C" # tile center
       #fi
       #setTo $x $y "O"
 
@@ -810,21 +810,17 @@ while [ 1 ]; do
     ((y+=rectHeight))
   done
 
-  #playerViewX=$((playerPosX * scX / 100 - camPxX+COLUMNS/2))
-  #playerViewY=$((playerPosY * scY / 100 - camPxY+BUFFERLINES/2))
-  #if ((playerViewX >= 0 && playerViewX <= visibleTilesX*scX && playerViewY >= 0 && playerViewY <= visibleTilesY*scY)); then
-  #  drawCircleR playerViewX playerViewY 3 9 4 "P"
-  #  setTo playerViewX playerViewY "P"
-  #fi
-  #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
-  playerViewX=$(( (playerPosX-w2camX)*scX/100 ))
-  playerViewY=$(( (playerPosY-w2camY)*scY/100 ))
+  playerPxX=$(( playerPosX*scX/100 ))
+  playerPxY=$(( playerPosY*scY/100 ))
+  playerWX=$(( playerPxX - (camPxX-COLUMNS/2) ))
+  playerWY=$(( playerPxY - (camPxY-BUFFERLINES/2) ))
   
-  if ((playerViewX >= 0 && playerViewX <= COLUMNS && playerViewY >= 0 && playerViewY <= BUFFERLINES)); then
-    setTo playerViewX playerViewY "P"
+  if ((playerWX >= 0 && playerWX <= COLUMNS && playerWY >= 0 && playerWY <= BUFFERLINES)); then
+    setTo playerWX playerWY "p"
+
     radius=4
-    if ((playerViewX >= radius && playerViewX <= (COLUMNS-radius) && playerViewY >= radius && playerViewY <= (BUFFERLINES-radius) )); then
-      drawCircleR playerViewX playerViewY 3 9 4 "P"
+    if ((playerWX >= radius && playerWX <= (COLUMNS-radius) && playerWY >= radius && playerWY <= (BUFFERLINES-radius) )); then
+      drawCircleR playerWX playerWY 5 9 4 "p"
     fi
   fi
 
