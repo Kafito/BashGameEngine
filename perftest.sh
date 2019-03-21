@@ -155,7 +155,8 @@ function drawLine { # x1 y1 x2 y2 char
 
       for (( line=y_1, col=x_1; line <= y_2; ++line)); do
         local pos=line*COLUMNS+col
-        scr[$pos]="$ind"
+        #scr[$pos]="$ind"
+        scr[$pos]="$char"
         ((ind = (++ind)%10)) # debug
         ((curInc += xdist))
         if ((curInc / ydist > 0)); then
@@ -169,7 +170,7 @@ function drawLine { # x1 y1 x2 y2 char
 
       for (( col=x_1, line=y_1; col <= x_2; ++col)); do
         local pos=line*COLUMNS+col
-        scr[$pos]=" " #"$ind"
+        scr[$pos]="$char" #"$ind"
         ((ind = (++ind)%10)) # debug
         ((curInc += ydist))
         if ((curInc / xdist > 0)); then
@@ -190,7 +191,7 @@ function drawLine { # x1 y1 x2 y2 char
       local ind=0
       while [ $line -ge $y_2 ]; do
         let local pos="line * COLUMNS + col"
-        scr[$pos]="_" #$ind"
+        scr[$pos]="$char" #$ind"
         ((line--))
         ((ind = (++ind)%10)) # debug
         ((curInc += xdist))
@@ -206,7 +207,7 @@ function drawLine { # x1 y1 x2 y2 char
       local ind=0
       while [ $col -le $x_2 ]; do
         let local pos="line * COLUMNS + col"
-        scr[$pos]="_" #$ind"
+        scr[$pos]="$char" #$ind"
         ((col++))
         ((ind = (++ind)%10)) # debug
         ((curInc += ydist))
