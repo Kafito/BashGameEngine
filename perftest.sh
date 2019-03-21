@@ -713,8 +713,6 @@ rot=0
 
 stty -echo
 lastTime=$(date +"%-s%N")
-setpos0=$(tput cup 0 0)
-
 
 while [ 1 ]; do
   clearBuffer
