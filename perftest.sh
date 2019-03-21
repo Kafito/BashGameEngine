@@ -3,6 +3,13 @@
 COLUMNS=$(tput cols)
 LINES=$(tput lines)
 
+dbg00=$(tput cup 0 0)
+dbg01=$(tput cup 0 $((COLUMNS/2)) )
+dbg10=$(tput cup 1 0)
+dbg11=$(tput cup 1 $((COLUMNS/2)) )
+dbg20=$(tput cup 2 0)
+dbg21=$(tput cup 2 $((COLUMNS/2)) )
+
 frameLines=3
 defaultIFS="$IFS"
 
@@ -69,9 +76,10 @@ function setTo {
   scr[$pos]=$char
 }
 
+bufStart=$(tput cup $frameLines 0)
 function printBuffer {
-  tput cup $frameLines 0
   local -n buffer=$1
+  printf "$bufStart"
   printf "%s" "${buffer[@]}"
 }
 allindices=$(seq 0 $((BUFFERLINES*COLUMNS-1)))
@@ -453,8 +461,7 @@ function playground {
     endtime=$(date +"%-N")
 
     difftime=$(( (endtime - starttime)/1000 ))
-    tput cup 0 0
-    echo "difftime = $difftime ; bashtime = $bashtime ; clearTime = $clearTime            "
+    echo "$dbg00 difftime = $difftime ; bashtime = $bashtime ; clearTime = $clearTime            "
 
     read
 
@@ -619,7 +626,7 @@ while [ 1 ]; do
   curTime=$(date +"%-s%N")
   elapsedTime=$(( (curTime - lastTime) / 1000000))
   lastTime=$((curTime))
-  printf "${setpos0}Frametime $elapsedTime ms                 "
+  printf "${dbg00}Frametime $elapsedTime ms                 "
 
   if (( follow == 1)); then
     camPosX=$((playerPosX))
@@ -634,8 +641,7 @@ while [ 1 ]; do
     camSubTilePosY=$(( (camPosY % 100)*scY/100 ))
   fi
 
-  tput cup 1 $((COLUMNS/2)) 
-  echo -n "subX = $camSubTilePosX | subY = $camSubTilePosY"
+  echo -n "$dbg11 subX = $camSubTilePosX | subY = $camSubTilePosY"
 
   camPxX=$((camPosX*scX/100))
   camPxY=$((camPosY*scY/100))
@@ -648,8 +654,7 @@ while [ 1 ]; do
   ((startX < 0)) && startX=$((0)); (( endX > COLUMNS )) && endX=$((COLUMNS))
   ((startY < 0)) && startY=$((0)); (( endY > BUFFERLINES )) && endY=$((BUFFERLINES))
 
-  tput cup 0 $((COLUMNS/2))
-  echo -n "screensize $COLUMNS x $BUFFERLINES | cam $camPxX $camPxY | sX $startX sY $startY endX $endX endY $endY"
+  echo -n "$dbg01 screensize $COLUMNS x $BUFFERLINES | cam $camPxX $camPxY | sX $startX sY $startY endX $endX endY $endY"
 
   for ((y = startY; y < endY; )); do
 
@@ -696,8 +701,8 @@ while [ 1 ]; do
 
       if ((debug == 1)); then
         printBuffer scr
-        tput cup 2 0; echo -n "$x $y | campos x $camPosX y $camPosY | tilePxX $tilePxX tilePxY $tilePxY camPxX $camPxX camPxY $camPxY tileWX $tileWX tileWY $tileWY    "
-        tput cup 1 0; echo -n "starX=$startX startY=$startY endX=$endX endY=$endY          "
+        echo -n "$dbg20 $x $y | campos x $camPosX y $camPosY | tilePxX $tilePxX tilePxY $tilePxY camPxX $camPxX camPxY $camPxY tileWX $tileWX tileWY $tileWY    "
+        echo -n "$dbg10 starX=$startX startY=$startY endX=$endX endY=$endY          "
         read
       fi
       ((x+=rectWidth))
@@ -743,8 +748,7 @@ while [ 1 ]; do
     esac
   done
 
-  tput cup 2 $((COLUMNS / 2))
-  echo -n "scX = $scX / scY = $scY             "
+  echo -n "$dbg21 scX = $scX / scY = $scY             "
 
   # Player Movement Code
   oldX=$((playerPosX))
