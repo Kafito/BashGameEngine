@@ -460,6 +460,63 @@ function drawCircleR { # cX cY rad xR yR char
   done
 }
 
+function scaleToLength { #x #y #length
+  local x=$1
+  local y=$2
+  local length=$3
+
+  local flipX=$(( x < 0 ))
+  local flipY=$(( y < 0 ))
+
+  local x=$(( x > 0 ? x : -x ))
+  local y=$(( y > 0 ? y : -y ))
+
+# Step 1 : calculate projection to [0 100] [100 0] line
+  if (( y > 0 && x > y)); then
+    # normalize by x
+    xl=$(( 100*x / (x+y) ))
+    yl=$(( 100-xl))
+  else
+    #normalize by y
+    yl=$(( 100*y / (x+y) ))
+    xl=$(( 100-yl ))
+  fi
+
+  # Step 2 : calculate projection to [0 140] [140 0] line
+  if ((x > y)); then
+    # normalize by x
+    xMax=$(( 140*x / (x+y) ))
+    yMax=$(( 140-xMax))
+  else
+    #normalize by y
+    yMax=$(( 140*y / (x+y) ))
+    xMax=$(( 140-yMax ))
+  fi
+
+  # Step 3 : Calculate line length of Step 1
+
+  absDiff=$(( (xl - yl) >= 0 ? xl - yl : yl - xl ))
+
+  # Step 4 : Combine Step 1, Step 3
+
+  ## mdist =  (2 + 1 - abs(xl-yl) / scale) / 2
+  ## approxX = xl.*mdist
+  ## approxY = yl.*mdist
+
+  #                  (200+100 - abs(xl-yl)           300 - abs(xl-yl)
+  # approxX = xl *   -----------------------  = xl * ----------------
+  #                  scale * 2                        scale * 2
+
+  x_a=$(( xl * (300 - absDiff) / 200 ))
+  y_a=$(( yl * (300 - absDiff) / 200 ))
+
+  # Step 5 : Use min(step4, step 2) as the result
+  x_=$(( x_a < xMax ? x_a : xMax ))
+  y_=$(( y_a < yMax ? y_a : yMax ))
+
+  if (( flipX )); then x_=$(( -x_ )); fi
+  if (( flipY )); then y_=$(( -y_ )); fi
+}
 
 echo "$COLUMNS cols, $LINES lines"
 
