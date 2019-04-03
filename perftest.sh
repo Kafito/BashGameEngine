@@ -673,6 +673,8 @@ playerPosX=$((8*100+50))
 playerPosY=$((4*100+50))
 playerVX=$((10))
 playerVY=$((7))
+playerRot=$((0))
+playerSpeed=$((24))
 camPosX=$((1600))
 camPosY=$((1600))
 
@@ -893,12 +895,17 @@ while [ 1 ]; do
   drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
 
   #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
+  drawLine $(( ppx0 - (camPxX-COLUMNS/2) )) $(( ppy0 - (camPxY-BUFFERLINES/2) )) $(( ppx1 - (camPxX-COLUMNS/2) )) $(( ppy1 - (camPxY-BUFFERLINES/2) )) "v"
 
   printBuffer scr
 
   for i in {1..2}; do
     read -t 0.010 -n 1 -s input
     case "$input" in
+      d) pd=500;pa=0 ;;
+      a) pa=500;pd=0 ;;
+      w) pw=500 ;;
+      s) ps=500 ;;
       i) ki=500 ;;
       j) kj=500 ;;
       k) kk=500 ;;
@@ -935,6 +942,20 @@ while [ 1 ]; do
   ((kl-=elapsedTime)); if ((kl > 0)); then ((camPosX+=1*elapsedTime/3)); fi
   ((ki-=elapsedTime)); if ((ki > 0)); then ((camPosY-=1*elapsedTime/3)); fi
   ((kk-=elapsedTime)); if ((kk > 0)); then ((camPosY+=1*elapsedTime/3)); fi
+
+  ((pa-=elapsedTime)); if ((pa > 0)); then ((playerRot+=1*elapsedTime/9)); fi
+  ((pd-=elapsedTime)); if ((pd > 0)); then ((playerRot-=1*elapsedTime/9)); fi
+
+  getVecForRot playerRot
+  scaleToLength outRadX outRadY
+  playerVX=$(( x_ / 4 ))  # for now, should be "scaleToLength playerSpeed" instead
+  playerVY=$(( y_ / 4 ))  # for now, should be "scaleToLength playerSpeed" instead
+
+  ppx0=$(( (playerPosX + 0)*scX/100 ))
+  ppx1=$(( (playerPosX + playerVX*2)*scX/100 ))
+  ppy0=$(( (playerPosY + 0)*scY/100 ))
+  ppy1=$(( (playerPosY + playerVY*2)*scY/100 ))
+  echo -n "$dbg10 Was los ist $playerRot $ppx0 $ppx1 $ppy0 $ppy1 $maxRotDistance                               "
 
   # Camera Position Code
 #  ((camPosX <= 0)) && camPosX=$((0))
