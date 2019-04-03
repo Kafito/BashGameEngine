@@ -899,10 +899,10 @@ while [ 1 ]; do
   for i in {1..2}; do
     read -t 0.010 -n 1 -s input
     case "$input" in
-      d) kd=500 ;;
-      a) ka=500 ;;
-      w) kw=500 ;;
-      s) ks=500 ;;
+      i) ki=500 ;;
+      j) kj=500 ;;
+      k) kk=500 ;;
+      l) kl=500 ;;
       f) ((follow^=1)) ;;
       g) ((snapToGrid^=1)) ;;
       +) incScale ;;
@@ -931,10 +931,10 @@ while [ 1 ]; do
   if [ "$pMapCharY" != "." ]; then playerPosY=$oldY; ((playerVY*=-1)); fi
 
   # Keyboard Handling Code
-  ((kd-=elapsedTime)); if ((kd > 0)); then ((camPosX+=1*elapsedTime/3)); fi
-  ((ka-=elapsedTime)); if ((ka > 0)); then ((camPosX-=1*elapsedTime/3)); fi
-  ((kw-=elapsedTime)); if ((kw > 0)); then ((camPosY-=1*elapsedTime/3)); fi
-  ((ks-=elapsedTime)); if ((ks > 0)); then ((camPosY+=1*elapsedTime/3)); fi
+  ((kj-=elapsedTime)); if ((kj > 0)); then ((camPosX-=1*elapsedTime/3)); fi
+  ((kl-=elapsedTime)); if ((kl > 0)); then ((camPosX+=1*elapsedTime/3)); fi
+  ((ki-=elapsedTime)); if ((ki > 0)); then ((camPosY-=1*elapsedTime/3)); fi
+  ((kk-=elapsedTime)); if ((kk > 0)); then ((camPosY+=1*elapsedTime/3)); fi
 
   # Camera Position Code
 #  ((camPosX <= 0)) && camPosX=$((0))
