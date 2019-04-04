@@ -677,6 +677,7 @@ playerRot=$((0))
 playerSpeed=$((24))
 camPosX=$((1600))
 camPosY=$((1600))
+camFov=$((90))
 
 mapWidth=$((32))
 mapHeight=$((22))
@@ -883,16 +884,23 @@ while [ 1 ]; do
     fi
   fi
 
+  ################ Visualize Frustum ################
+  frustumLeftRot=$(( playerRot - camFov/2 )) 
+  frustumRightRot=$(( playerRot + camFov/2 )) 
 
-  getVecForRot $rot
-  spx0=$(( (camPosX + 0)*scX/100 ))
-  spx1=$(( (camPosX + outRadX*3/6)*scX/100 ))
-  spy0=$(( (camPosY + 0)*scY/100 ))
-  spy1=$(( (camPosY + outRadY*3/6)*scY/100 ))
-  echo -n "$dbg10 $spx0 $spx1 $spy0 $spy1 $maxRotDistance                               "
-  (( rot+= 5 ))
+  for rot in $frustumLeftRot $frustumRightRot; do
+    getVecForRot $((rot))
+    scaleToLength outRadX outRadY
 
-  drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
+    fpx0=$(( (playerPosX +       0)*scX/100 ))
+    fpx1=$(( (playerPosX + outRadX )*scX/100 ))
+    fpy0=$(( (playerPosY +       0)*scY/100 ))
+    fpy1=$(( (playerPosY + outRadY )*scY/100 ))
+    drawLine $(( fpx0 - (camPxX-COLUMNS/2) )) $(( fpy0 - (camPxY-BUFFERLINES/2) )) $(( fpx1 - (camPxX-COLUMNS/2) )) $(( fpy1 - (camPxY-BUFFERLINES/2) )) "g"
+  done
+  ###################################################
+
+  #drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
 
   #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
   drawLine $(( ppx0 - (camPxX-COLUMNS/2) )) $(( ppy0 - (camPxY-BUFFERLINES/2) )) $(( ppx1 - (camPxX-COLUMNS/2) )) $(( ppy1 - (camPxY-BUFFERLINES/2) )) "v"
