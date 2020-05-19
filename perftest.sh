@@ -1,4 +1,12 @@
 #! /bin/bash
+#
+# TODO:
+# * Track distance to hit.
+#    * create array with column / distance
+# * Implement 3D mode.
+#    * create keyboard switch 
+#    * implement horizontal line drawing
+# * Fix scaleToLength (currently ignors given length).
 
 COLUMNS=$(tput cols)
 LINES=$(tput lines)
@@ -342,8 +350,6 @@ function getVecForRot { #  deg
   xRad=0
   yRad=$rad
 
-  # distance / 90 grad    ->  distance / 90 / 45 --> distance * r / 90 
-
   distanceToTravel=$((maxRotDistance * (degrees % 90) / 90 ))
   distance=0
 
@@ -460,7 +466,7 @@ function drawCircleR { # cX cY rad xR yR char
   done
 }
 
-function scaleToLength { #x #y #length
+function scaleToLength { #x #y #length (length not respected for now)
   local x=$1
   local y=$2
   local length=$3
@@ -669,15 +675,15 @@ function playground {
 origScaleX=$((9))
 origScaleY=$((4))
 
-playerPosX=$((8*100+50))
-playerPosY=$((4*100+50))
-playerVX=$((10))
-playerVY=$((7))
+playerPosX=$((1*100+50))
+playerPosY=$((1*100+50))
+playerVX=$((20))
+playerVY=$((13))
 playerRot=$((0))
 playerSpeed=$((24))
-camPosX=$((1600))
-camPosY=$((1600))
-camFov=$((90))
+camPosX=$((1*100+50))
+camPosY=$((1*100+50))
+camFov=$((45))
 
 mapWidth=$((32))
 mapHeight=$((22))
@@ -705,7 +711,7 @@ map+="l..............................r" # 21
 map+="################################" # 22
 
 #source perf.map
-source simplemap.map
+#source simplemap.map
 
 # create array from string map
 IFS=" "; read -a mapArr <<< $(echo "$map" | sed 's/\(.\)/\1 /g'); IFS="$defaultIFS"
@@ -765,11 +771,16 @@ function decScale {
 
 recalcSettings
 
-camPosX=$((visibleTilesX/2*100+1))
-camPosY=$((visibleTilesY/2*100+1))
+#camPosX=$((visibleTilesX/2*100+1))
+#camPosY=$((visibleTilesY/2*100+1))
 setUpRot
+#while (( scX < 83 )); do
+#  incScale
+#done
 
-rot=0
+visualize=0
+stopPlayer=0
+
 
 stty -echo
 lastTime=$(date +"%-s%N")
@@ -857,7 +868,7 @@ while [ 1 ]; do
       #  cY=$((tileWY_pxY + scY/2 - (camPxY-BUFFERLINES/2) ))
       #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "C" # tile center
       #fi
-      #setTo $x $y "O"
+      ##setTo $x $y "O"
 
       if ((debug == 1)); then
         printBuffer scr
@@ -903,9 +914,94 @@ while [ 1 ]; do
   #drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
 
   #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
+
+  ################ Visualize View Dir ################
   drawLine $(( ppx0 - (camPxX-COLUMNS/2) )) $(( ppy0 - (camPxY-BUFFERLINES/2) )) $(( ppx1 - (camPxX-COLUMNS/2) )) $(( ppy1 - (camPxY-BUFFERLINES/2) )) "v"
 
+################ Calculate 'Near Plane' ################
+
+getVecForRot frustumLeftRot
+flX=$((outRadX))
+flY=$((outRadY))
+
+getVecForRot frustumRightRot
+frX=$((outRadX))
+frY=$((outRadY))
+
+fdX=$((frX - flX))
+fdY=$((frY - flY))
+
+## VISUALIZE ##
+npX0=$(( playerPosX + flX ))
+npY0=$(( playerPosY + flY ))
+npX1=$(( playerPosX + flX + fdX))
+npY1=$(( playerPosY + flY + fdY))
+
+drawLine $(( npX0*scX/100 - (camPxX-COLUMNS/2 ))) $(( npY0*scY/100 - (camPxY-BUFFERLINES/2) )) $(( npX1*scX/100 - (camPxX-COLUMNS/2 ))) $(( npY1*scY/100 - (camPxY-BUFFERLINES/2) )) 'v'
+
+
+################ Calculate all points on nearplane ################
+
+# for each 'pixel' (i.e. Column, calculate the corresponding point)
+
+for (( i = 0; i < COLUMNS; ++i )); do
+  #continue
+  fdXp=$(( fdX*i/COLUMNS ))
+  fdYp=$(( fdY*i/COLUMNS ))
+
+  npXp1=$(( playerPosX + flX + fdXp ))
+  npYp1=$(( playerPosY + flY + fdYp ))
+
+  pp2pixelX=$(( npXp1 - playerPosX ))
+  pp2pixelY=$(( npYp1 - playerPosY ))
+
+  scaleToLength pp2pixelX pp2pixelY 50
+
+  traversalX=$((x_))
+  traversalY=$((y_))
+
+  travPosX=$((playerPosX))
+  travPosY=$((playerPosY))
+
+  collTileX=-1
+  collTileY=-1
+
+  # premature optimization: avoid unnecessary array lookups, might be unneccesary, if the ptr poitns to the last used element.
+    oldMapX=-1
+    oldMapY=-1
+  while (( collTileX==-1 && collTileY==-1 )); do
+    (( travPosX+=traversalX ))
+    (( travPosY+=traversalY ))
+
+    travPostileWX=$((travPosX/100))
+    travPostileWY=$((travPosY/100))
+
+    mapChar="${mapArr[$((travPostileWY*mapWidth + travPostileWX))]}" 
+
+    if ((oldMapX != travPostileWX && oldMapY != travPostileWY )) && [ "$mapChar" != "." ]; then
+      collTileX=$((travPostileWX))
+      collTileY=$((travPostileWY))
+      oldMapX=travPostileWX
+      oldMapY=travPostileWY
+    fi
+
+    travPosSubtileWX=$((travPosX*scX/100))
+    travPosSubtileWY=$((travPosY*scY/100))
+  
+    # Visualize tracing
+    curPxX=$(( travPosSubtileWX - (camPxX-COLUMNS/2) ))
+    curPxY=$(( travPosSubtileWY - (camPxY-BUFFERLINES/2) ))
+    if (( visualize>0 && curPxX >= 0 && curPxX < COLUMNS && curPxY >= 0 && curPxY < BUFFERLINES )); then
+      setTo $curPxX $curPxY  "."
+    fi
+    
+  done
+done
+
+########################################################
+
   printBuffer scr
+  #read
 
   for i in {1..2}; do
     read -t 0.010 -n 1 -s input
@@ -920,11 +1016,13 @@ while [ 1 ]; do
       l) kl=500 ;;
       f) ((follow^=1)) ;;
       g) ((snapToGrid^=1)) ;;
+      h) ((stopPlayer^=1)) ;;
       +) incScale ;;
       -) decScale ;;
       r) resetScale ;;
       p) read ;;
       b) ((debug^=1)) ;;
+      v) (( visualize^=1 )) ;;
     esac
   done
 
@@ -934,8 +1032,10 @@ while [ 1 ]; do
   oldX=$((playerPosX))
   oldY=$((playerPosY))
 
-  ((playerPosX+=elapsedTime * playerVX / 200))
-  ((playerPosY+=elapsedTime * playerVY / 200))
+  if (( stopPlayer==0 )); then
+    ((playerPosX+=elapsedTime * playerVX / 200))
+    ((playerPosY+=elapsedTime * playerVY / 200))
+  fi
 
   pMapCharX=${mapArr[$(( oldY / 100 * mapWidth + playerPosX/100 ))]}
   pMapCharY=${mapArr[$(( playerPosY / 100 * mapWidth + oldX/100 ))]}
