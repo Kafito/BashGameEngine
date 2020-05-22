@@ -39,7 +39,7 @@ Currently, the project contains implementations for the following:
 * Map renderer (including unlimited zooming)
 * Ray casting, visualized in the map renderer.
 * Simple collision detection between a 'player' and the map.
-* Integer-based approximating calculation of circles
+* Integer-based rescaling of vectors to a specific length.
    TODO: Add octave script for the approximation and images.
 
 ## Bash specifics
