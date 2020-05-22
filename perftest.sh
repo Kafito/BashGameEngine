@@ -1,4 +1,12 @@
 #! /bin/bash
+#
+# TODO:
+# * Track distance to hit.
+#    * create array with column / distance
+# * Implement 3D mode.
+#    * create keyboard switch 
+#    * implement horizontal line drawing
+# * Fix scaleToLength (currently ignors given length).
 
 COLUMNS=$(tput cols)
 LINES=$(tput lines)
@@ -342,8 +350,6 @@ function getVecForRot { #  deg
   xRad=0
   yRad=$rad
 
-  # distance / 90 grad    ->  distance / 90 / 45 --> distance * r / 90 
-
   distanceToTravel=$((maxRotDistance * (degrees % 90) / 90 ))
   distance=0
 
@@ -460,6 +466,63 @@ function drawCircleR { # cX cY rad xR yR char
   done
 }
 
+function scaleToLength { #x #y #length (length not respected for now)
+  local x=$1
+  local y=$2
+  local length=$3
+
+  local flipX=$(( x < 0 ))
+  local flipY=$(( y < 0 ))
+
+  local x=$(( x > 0 ? x : -x ))
+  local y=$(( y > 0 ? y : -y ))
+
+# Step 1 : calculate projection to [0 100] [100 0] line
+  if (( y > 0 && x > y)); then
+    # normalize by x
+    xl=$(( 100*x / (x+y) ))
+    yl=$(( 100-xl))
+  else
+    #normalize by y
+    yl=$(( 100*y / (x+y) ))
+    xl=$(( 100-yl ))
+  fi
+
+  # Step 2 : calculate projection to [0 140] [140 0] line
+  if ((x > y)); then
+    # normalize by x
+    xMax=$(( 140*x / (x+y) ))
+    yMax=$(( 140-xMax))
+  else
+    #normalize by y
+    yMax=$(( 140*y / (x+y) ))
+    xMax=$(( 140-yMax ))
+  fi
+
+  # Step 3 : Calculate line length of Step 1
+
+  absDiff=$(( (xl - yl) >= 0 ? xl - yl : yl - xl ))
+
+  # Step 4 : Combine Step 1, Step 3
+
+  ## mdist =  (2 + 1 - abs(xl-yl) / scale) / 2
+  ## approxX = xl.*mdist
+  ## approxY = yl.*mdist
+
+  #                  (200+100 - abs(xl-yl)           300 - abs(xl-yl)
+  # approxX = xl *   -----------------------  = xl * ----------------
+  #                  scale * 2                        scale * 2
+
+  x_a=$(( xl * (300 - absDiff) / 200 ))
+  y_a=$(( yl * (300 - absDiff) / 200 ))
+
+  # Step 5 : Use min(step4, step 2) as the result
+  x_=$(( x_a < xMax ? x_a : xMax ))
+  y_=$(( y_a < yMax ? y_a : yMax ))
+
+  if (( flipX )); then x_=$(( -x_ )); fi
+  if (( flipY )); then y_=$(( -y_ )); fi
+}
 
 echo "$COLUMNS cols, $LINES lines"
 
@@ -612,12 +675,15 @@ function playground {
 origScaleX=$((9))
 origScaleY=$((4))
 
-playerPosX=$((8*100+50))
-playerPosY=$((4*100+50))
-playerVX=$((10))
-playerVY=$((7))
-camPosX=$((1600))
-camPosY=$((1600))
+playerPosX=$((1*100+50))
+playerPosY=$((1*100+50))
+playerVX=$((20))
+playerVY=$((13))
+playerRot=$((0))
+playerSpeed=$((24))
+camPosX=$((1*100+50))
+camPosY=$((1*100+50))
+camFov=$((45))
 
 mapWidth=$((32))
 mapHeight=$((22))
@@ -645,7 +711,7 @@ map+="l..............................r" # 21
 map+="################################" # 22
 
 #source perf.map
-source simplemap.map
+#source simplemap.map
 
 # create array from string map
 IFS=" "; read -a mapArr <<< $(echo "$map" | sed 's/\(.\)/\1 /g'); IFS="$defaultIFS"
@@ -705,11 +771,16 @@ function decScale {
 
 recalcSettings
 
-camPosX=$((visibleTilesX/2*100+1))
-camPosY=$((visibleTilesY/2*100+1))
+#camPosX=$((visibleTilesX/2*100+1))
+#camPosY=$((visibleTilesY/2*100+1))
 setUpRot
+#while (( scX < 83 )); do
+#  incScale
+#done
 
-rot=0
+visualize=0
+stopPlayer=0
+
 
 stty -echo
 lastTime=$(date +"%-s%N")
@@ -797,7 +868,7 @@ while [ 1 ]; do
       #  cY=$((tileWY_pxY + scY/2 - (camPxY-BUFFERLINES/2) ))
       #  ((cX>=0 && cX<COLUMNS && cY>=0 && cY < BUFFERLINES)) && setTo $cX $cY "C" # tile center
       #fi
-      #setTo $x $y "O"
+      ##setTo $x $y "O"
 
       if ((debug == 1)); then
         printBuffer scr
@@ -824,35 +895,134 @@ while [ 1 ]; do
     fi
   fi
 
+  ################ Visualize Frustum ################
+  frustumLeftRot=$(( playerRot - camFov/2 )) 
+  frustumRightRot=$(( playerRot + camFov/2 )) 
 
-  getVecForRot $rot
-  spx0=$(( (camPosX + 0)*scX/100 ))
-  spx1=$(( (camPosX + outRadX*3/6)*scX/100 ))
-  spy0=$(( (camPosY + 0)*scY/100 ))
-  spy1=$(( (camPosY + outRadY*3/6)*scY/100 ))
-  echo -n "$dbg10 $spx0 $spx1 $spy0 $spy1 $maxRotDistance                               "
-  (( rot+= 5 ))
+  for rot in $frustumLeftRot $frustumRightRot; do
+    getVecForRot $((rot))
+    scaleToLength outRadX outRadY
 
-  drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
+    fpx0=$(( (playerPosX +       0)*scX/100 ))
+    fpx1=$(( (playerPosX + outRadX )*scX/100 ))
+    fpy0=$(( (playerPosY +       0)*scY/100 ))
+    fpy1=$(( (playerPosY + outRadY )*scY/100 ))
+    drawLine $(( fpx0 - (camPxX-COLUMNS/2) )) $(( fpy0 - (camPxY-BUFFERLINES/2) )) $(( fpx1 - (camPxX-COLUMNS/2) )) $(( fpy1 - (camPxY-BUFFERLINES/2) )) "g"
+  done
+  ###################################################
+
+  #drawLine $(( spx0 - (camPxX-COLUMNS/2) )) $(( spy0 - (camPxY-BUFFERLINES/2) )) $(( spx1 - (camPxX-COLUMNS/2) )) $(( spy1 - (camPxY-BUFFERLINES/2) )) "g"
 
   #setTo $((COLUMNS/2)) $((BUFFERLINES/2)) "C"
 
+  ################ Visualize View Dir ################
+  drawLine $(( ppx0 - (camPxX-COLUMNS/2) )) $(( ppy0 - (camPxY-BUFFERLINES/2) )) $(( ppx1 - (camPxX-COLUMNS/2) )) $(( ppy1 - (camPxY-BUFFERLINES/2) )) "v"
+
+################ Calculate 'Near Plane' ################
+
+getVecForRot frustumLeftRot
+flX=$((outRadX))
+flY=$((outRadY))
+
+getVecForRot frustumRightRot
+frX=$((outRadX))
+frY=$((outRadY))
+
+fdX=$((frX - flX))
+fdY=$((frY - flY))
+
+## VISUALIZE ##
+npX0=$(( playerPosX + flX ))
+npY0=$(( playerPosY + flY ))
+npX1=$(( playerPosX + flX + fdX))
+npY1=$(( playerPosY + flY + fdY))
+
+drawLine $(( npX0*scX/100 - (camPxX-COLUMNS/2 ))) $(( npY0*scY/100 - (camPxY-BUFFERLINES/2) )) $(( npX1*scX/100 - (camPxX-COLUMNS/2 ))) $(( npY1*scY/100 - (camPxY-BUFFERLINES/2) )) 'v'
+
+
+################ Calculate all points on nearplane ################
+
+# for each 'pixel' (i.e. Column, calculate the corresponding point)
+
+for (( i = 0; i < COLUMNS; ++i )); do
+  #continue
+  fdXp=$(( fdX*i/COLUMNS ))
+  fdYp=$(( fdY*i/COLUMNS ))
+
+  npXp1=$(( playerPosX + flX + fdXp ))
+  npYp1=$(( playerPosY + flY + fdYp ))
+
+  pp2pixelX=$(( npXp1 - playerPosX ))
+  pp2pixelY=$(( npYp1 - playerPosY ))
+
+  scaleToLength pp2pixelX pp2pixelY 50
+
+  traversalX=$((x_))
+  traversalY=$((y_))
+
+  travPosX=$((playerPosX))
+  travPosY=$((playerPosY))
+
+  collTileX=-1
+  collTileY=-1
+
+  # premature optimization: avoid unnecessary array lookups, might be unneccesary, if the ptr poitns to the last used element.
+    oldMapX=-1
+    oldMapY=-1
+  while (( collTileX==-1 && collTileY==-1 )); do
+    (( travPosX+=traversalX ))
+    (( travPosY+=traversalY ))
+
+    travPostileWX=$((travPosX/100))
+    travPostileWY=$((travPosY/100))
+
+    mapChar="${mapArr[$((travPostileWY*mapWidth + travPostileWX))]}" 
+
+    if ((oldMapX != travPostileWX && oldMapY != travPostileWY )) && [ "$mapChar" != "." ]; then
+      collTileX=$((travPostileWX))
+      collTileY=$((travPostileWY))
+      oldMapX=travPostileWX
+      oldMapY=travPostileWY
+    fi
+
+    travPosSubtileWX=$((travPosX*scX/100))
+    travPosSubtileWY=$((travPosY*scY/100))
+  
+    # Visualize tracing
+    curPxX=$(( travPosSubtileWX - (camPxX-COLUMNS/2) ))
+    curPxY=$(( travPosSubtileWY - (camPxY-BUFFERLINES/2) ))
+    if (( visualize>0 && curPxX >= 0 && curPxX < COLUMNS && curPxY >= 0 && curPxY < BUFFERLINES )); then
+      setTo $curPxX $curPxY  "."
+    fi
+    
+  done
+done
+
+########################################################
+
   printBuffer scr
+  #read
 
   for i in {1..2}; do
     read -t 0.010 -n 1 -s input
     case "$input" in
-      d) kd=500 ;;
-      a) ka=500 ;;
-      w) kw=500 ;;
-      s) ks=500 ;;
+      d) pd=500;pa=0 ;;
+      a) pa=500;pd=0 ;;
+      w) pw=500 ;;
+      s) ps=500 ;;
+      i) ki=500 ;;
+      j) kj=500 ;;
+      k) kk=500 ;;
+      l) kl=500 ;;
       f) ((follow^=1)) ;;
       g) ((snapToGrid^=1)) ;;
+      h) ((stopPlayer^=1)) ;;
       +) incScale ;;
       -) decScale ;;
       r) resetScale ;;
       p) read ;;
       b) ((debug^=1)) ;;
+      v) (( visualize^=1 )) ;;
     esac
   done
 
@@ -862,8 +1032,10 @@ while [ 1 ]; do
   oldX=$((playerPosX))
   oldY=$((playerPosY))
 
-  ((playerPosX+=elapsedTime * playerVX / 200))
-  ((playerPosY+=elapsedTime * playerVY / 200))
+  if (( stopPlayer==0 )); then
+    ((playerPosX+=elapsedTime * playerVX / 200))
+    ((playerPosY+=elapsedTime * playerVY / 200))
+  fi
 
   pMapCharX=${mapArr[$(( oldY / 100 * mapWidth + playerPosX/100 ))]}
   pMapCharY=${mapArr[$(( playerPosY / 100 * mapWidth + oldX/100 ))]}
@@ -874,10 +1046,24 @@ while [ 1 ]; do
   if [ "$pMapCharY" != "." ]; then playerPosY=$oldY; ((playerVY*=-1)); fi
 
   # Keyboard Handling Code
-  ((kd-=elapsedTime)); if ((kd > 0)); then ((camPosX+=1*elapsedTime/3)); fi
-  ((ka-=elapsedTime)); if ((ka > 0)); then ((camPosX-=1*elapsedTime/3)); fi
-  ((kw-=elapsedTime)); if ((kw > 0)); then ((camPosY-=1*elapsedTime/3)); fi
-  ((ks-=elapsedTime)); if ((ks > 0)); then ((camPosY+=1*elapsedTime/3)); fi
+  ((kj-=elapsedTime)); if ((kj > 0)); then ((camPosX-=1*elapsedTime/3)); fi
+  ((kl-=elapsedTime)); if ((kl > 0)); then ((camPosX+=1*elapsedTime/3)); fi
+  ((ki-=elapsedTime)); if ((ki > 0)); then ((camPosY-=1*elapsedTime/3)); fi
+  ((kk-=elapsedTime)); if ((kk > 0)); then ((camPosY+=1*elapsedTime/3)); fi
+
+  ((pa-=elapsedTime)); if ((pa > 0)); then ((playerRot+=1*elapsedTime/9)); fi
+  ((pd-=elapsedTime)); if ((pd > 0)); then ((playerRot-=1*elapsedTime/9)); fi
+
+  getVecForRot playerRot
+  scaleToLength outRadX outRadY
+  playerVX=$(( x_ / 4 ))  # for now, should be "scaleToLength playerSpeed" instead
+  playerVY=$(( y_ / 4 ))  # for now, should be "scaleToLength playerSpeed" instead
+
+  ppx0=$(( (playerPosX + 0)*scX/100 ))
+  ppx1=$(( (playerPosX + playerVX*2)*scX/100 ))
+  ppy0=$(( (playerPosY + 0)*scY/100 ))
+  ppy1=$(( (playerPosY + playerVY*2)*scY/100 ))
+  echo -n "$dbg10 Was los ist $playerRot $ppx0 $ppx1 $ppy0 $ppy1 $maxRotDistance                               "
 
   # Camera Position Code
 #  ((camPosX <= 0)) && camPosX=$((0))
